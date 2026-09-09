@@ -1,0 +1,66 @@
+name: festival
+
+x-app: &app
+  build: .
+  image: festival-app:dev
+  volumes:
+    - .:/rails                 # live-mount the source so host edits reflect instantly
+    - bundle:/usr/local/bundle # keep installed gems in a named volume, not the bind mount
+  environment: &app-env
+    RAILS_ENV: development
+    DATABASE_HOST: db
+    DATABASE_PORT: 5432
+    DATABASE_USER: postgres
+    DATABASE_PASSWORD: postgres
+    REDIS_URL: redis://redis:6379/0
+    FESTIVAL_API_URL: http://web:3000
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: festival_development
+    ports:
+      - "5544:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+
+  web:
+    <<: *app
+    command: sh -c "rm -f tmp/pids/server.pid && bin/rails db:prepare && bin/rails tailwindcss:build && bin/rails server -b 0.0.0.0 -p 3000"
+    ports:
+      - "3000:3000"
+    stdin_open: true   
+    tty: true
+
+  css:
+    <<: *app
+    command: bin/rails tailwindcss:watch[always]
+
+  sidekiq:
+    <<: *app
+    command: bundle exec sidekiq
+
+volumes:
+  pgdata:
+  redisdata:
+  bundle:

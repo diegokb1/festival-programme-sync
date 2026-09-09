@@ -1,0 +1,63 @@
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <header class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Festival Screenings</h1>
+    <p class="text-gray-500">Browse what's on across the festival's venues.</p>
+  </header>
+
+  <%= form_with url: screenings_path, method: :get, class: "flex flex-wrap items-end gap-3 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200" do |f| %>
+    <div class="flex flex-col">
+      <%= f.label :date, "Date", class: "text-sm font-medium text-gray-700 mb-1" %>
+      <%= f.date_field :date, value: params[:date], class: "rounded-md border-gray-300 shadow-sm" %>
+    </div>
+
+    <div class="flex flex-col">
+      <%= f.label :venue_id, "Venue", class: "text-sm font-medium text-gray-700 mb-1" %>
+      <%= f.select :venue_id,
+            options_from_collection_for_select(@venues, :id, :name, params[:venue_id]),
+            { include_blank: "All venues" },
+            class: "rounded-md border-gray-300 shadow-sm" %>
+    </div>
+
+    <div class="flex flex-col grow">
+      <%= f.label :q, "Search titles", class: "text-sm font-medium text-gray-700 mb-1" %>
+      <%= f.text_field :q, value: params[:q], placeholder: "e.g. Autumn", class: "rounded-md border-gray-300 shadow-sm w-full" %>
+    </div>
+
+    <%= f.submit "Filter", class: "rounded-md bg-gray-900 px-4 py-2 text-white font-medium hover:bg-gray-700 cursor-pointer" %>
+  <% end %>
+
+  <%= turbo_frame_tag "screenings" do %>
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Film</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Venue</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Starts</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 bg-white">
+          <% @screenings.each do |screening| %>
+            <tr>
+              <td class="px-4 py-3 text-sm font-medium text-gray-900"><%= screening.film.title %></td>
+              <td class="px-4 py-3 text-sm text-gray-700"><%= screening.venue.name %></td>
+              <td class="px-4 py-3 text-sm text-gray-700"><%= screening.starts_at.strftime("%a %d %b, %-l:%M%P") %></td>
+              <td class="px-4 py-3 text-sm">
+                <% if screening.cancelled? %>
+                  <span class="inline-flex rounded-full bg-red-100 px-2 text-xs font-semibold leading-5 text-red-800">Cancelled</span>
+                <% else %>
+                  <span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">Scheduled</span>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+
+          <% if @screenings.empty? %>
+            <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No screenings match your filters.</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>
