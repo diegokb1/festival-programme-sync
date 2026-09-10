@@ -45,10 +45,15 @@ RSpec.describe ProgrammeSync do
         .and change(Venue, :count).by(0)
     end
 
-    it "updates existing records when the upstream data changes" do
+    it "updates existing records when the upstream data changes, without duplicating them" do
       ProgrammeSync.new(http: build_http(MockApi::Dataset.generation_one)).call
 
-      ProgrammeSync.new(http: build_http(MockApi::Dataset.generation_two)).call
+      expect { ProgrammeSync.new(http: build_http(MockApi::Dataset.generation_two)).call }
+        .to change(Film, :count).by(0)
+        .and change(Venue, :count).by(0)
+
+      expect(Film.where(external_id: "FILM-005").count).to eq(1)
+      expect(Venue.where(external_id: "VEN-03").count).to eq(1)
 
       expect(Venue.find_by(external_id: "VEN-03").name).to eq("City Gallery Auditorium")
       expect(Film.find_by(external_id: "FILM-005").title).to eq("Autumn in Trieste (Director's Cut)")
@@ -62,12 +67,27 @@ RSpec.describe ProgrammeSync do
 
       expect { ProgrammeSync.new(http: http, retry_wait: 0).call }.to raise_error(ProgrammeSync::Error)
 
-      expect(Screening.count).to eq(MockApi::Dataset::PER_PAGE) # only page 1 made it in
+      expect(Screening.count).to eq(MockApi::Dataset::PER_PAGE)
 
       run = SyncRun.last
       expect(run).to be_failed
       expect(run.error_message).to be_present
       expect(run.stats["pages_fetched"]).to eq(1)
+    end
+
+    it "isolates a bad record so it doesn't abort the rest of the batch, and reports it" do
+      records = MockApi::Dataset.generation_one.first(5)
+      records[2]["film"]["title"] = nil
+
+      http = build_http(records)
+
+      run = ProgrammeSync.new(http: http).call
+
+      expect(run).to be_partial
+      expect(Screening.count).to eq(4)
+      expect(run.stats["errors"].size).to eq(1)
+      expect(run.stats["errors"].first["external_id"]).to eq(records[2]["id"])
+      expect(run.stats["errors"].first["message"]).to match(/Title can't be blank/)
     end
 
     it "retries a transiently failing page before giving up" do

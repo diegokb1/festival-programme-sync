@@ -27,7 +27,11 @@ class ProgrammeSync
       body        = fetch_page(page)
       total_pages = body.fetch("total_pages")
 
-      body.fetch("screenings").each { |record| upsert_screening(record) }
+      body.fetch("screenings").each do |record|
+        upsert_screening(record)
+      rescue => e
+        record_error(record, e)
+      end
 
       @sync_run.stats["pages_fetched"] = page
       @sync_run.save!
@@ -35,7 +39,7 @@ class ProgrammeSync
       page += 1
     end
 
-    @sync_run.succeed!
+    @sync_run.stats["errors"].present? ? @sync_run.partial! : @sync_run.succeed!
     log_run
     @sync_run
   rescue => e
@@ -56,7 +60,13 @@ class ProgrammeSync
     }
     payload[:error] = error if error
 
-    Rails.logger.public_send(error ? :error : :info, payload.to_json)
+    level = error ? :error : (@sync_run.partial? ? :warn : :info)
+    Rails.logger.public_send(level, payload.to_json)
+  end
+
+  def record_error(record, error)
+    (@sync_run.stats["errors"] ||= []) << { "external_id" => record["id"], "message" => error.message }
+    Rails.logger.error("[ProgrammeSync] failed to sync screening #{record["id"].inspect}: #{error.message}")
   end
 
   def fetch_page(page)
