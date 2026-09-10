@@ -1,0 +1,4 @@
+programme_sync:
+  cron: "0 * * * *"
+  class: "ProgrammeSyncJob"
+  queue: default
