@@ -19,6 +19,8 @@ class VenueSync
       venue.address     = attrs["address"]
       venue.capacity    = attrs["capacity"]
       venue.save!
+    rescue => e
+      Rails.logger.error("[VenueSync] failed to sync venue #{attrs["id"].inspect}: #{e.message}")
     end
   end
 end
