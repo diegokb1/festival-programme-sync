@@ -100,8 +100,8 @@ RSpec.describe ProgrammeSync do
 
       expect(run).to be_success
       expect(run.stats["screenings"]).to eq("created" => 60, "updated" => 0)
-      expect(run.stats["films"]).to eq("created" => 12, "updated" => 0)
-      expect(run.stats["venues"]).to eq("created" => 6, "updated" => 0)
+      expect(run.stats["films"]).to eq("created" => 12, "updated" => 48)
+      expect(run.stats["venues"]).to eq("created" => 6, "updated" => 54)
       expect(run.stats["pages_fetched"]).to eq(3)
     end
   end
