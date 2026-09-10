@@ -104,5 +104,32 @@ RSpec.describe ProgrammeSync do
       expect(run.stats["venues"]).to eq("created" => 6, "updated" => 54)
       expect(run.stats["pages_fetched"]).to eq(3)
     end
+
+    it "logs a structured summary of a successful run" do
+      http = build_http(MockApi::Dataset.generation_one)
+
+      expect(Rails.logger).to receive(:info) do |message|
+        payload = JSON.parse(message)
+        expect(payload["event"]).to eq("programme_sync.run")
+        expect(payload["status"]).to eq("success")
+        expect(payload["stats"]["screenings"]).to eq("created" => 60, "updated" => 0)
+        expect(payload["duration_ms"]).to be_a(Integer)
+      end
+
+      ProgrammeSync.new(http: http).call
+    end
+
+    it "logs a structured summary of a failed run" do
+      http = build_http(MockApi::Dataset.generation_one, fail_on_page: 2)
+
+      expect(Rails.logger).to receive(:error) do |message|
+        payload = JSON.parse(message)
+        expect(payload["event"]).to eq("programme_sync.run")
+        expect(payload["status"]).to eq("failed")
+        expect(payload["error"]).to be_present
+      end
+
+      expect { ProgrammeSync.new(http: http, retry_wait: 0).call }.to raise_error(ProgrammeSync::Error)
+    end
   end
 end

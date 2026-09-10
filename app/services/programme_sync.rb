@@ -36,13 +36,28 @@ class ProgrammeSync
     end
 
     @sync_run.succeed!
+    log_run
     @sync_run
   rescue => e
     @sync_run.fail!(e)
+    log_run(error: e.message)
     raise
   end
 
   private
+
+  def log_run(error: nil)
+    payload = {
+      event:       "programme_sync.run",
+      sync_run_id: @sync_run.id,
+      status:      @sync_run.status,
+      duration_ms: ((@sync_run.finished_at - @sync_run.started_at) * 1000).round,
+      stats:       @sync_run.stats
+    }
+    payload[:error] = error if error
+
+    Rails.logger.public_send(error ? :error : :info, payload.to_json)
+  end
 
   def fetch_page(page)
     attempts = 0
